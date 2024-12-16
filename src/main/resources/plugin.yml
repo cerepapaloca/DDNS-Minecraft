@@ -1,0 +1,8 @@
+name: DDNS
+version: '1.0'
+main: net.ddns
+api-version: '1.21'
+prefix: AviaTerraCore
+load: STARTUP
+authors: [ Ceres ]
+description: Actualiza automaticamente la ip del dominio
