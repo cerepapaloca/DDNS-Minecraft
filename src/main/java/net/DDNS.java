@@ -11,12 +11,13 @@ import java.net.*;
 @SuppressWarnings("deprecation")
 public final class DDNS extends JavaPlugin {
 
-    @SuppressWarnings("ResultOfMethodCallIgnored")
     @Override
     public void onEnable() {
         saveDefaultConfig();
-        password = getConfig().getString("password");
+        reloadConfig();
+        password = getConfig().getString("Password-dns");
         domain = getConfig().getString("domain");
+        IpNow = getConfig().getString("last-ip");
         new BukkitRunnable() {
             public void run() {
                 try {
@@ -25,7 +26,7 @@ public final class DDNS extends JavaPlugin {
                     throw new RuntimeException(e);
                 }
             }
-        }.runTaskTimerAsynchronously(this, 20*10, 20*10);
+        }.runTaskTimerAsynchronously(this, 0, 20*10);
     }
 
     @Override
@@ -53,25 +54,34 @@ public final class DDNS extends JavaPlugin {
         return content.toString();
     }
 
+    private static boolean isStarting = true;
+
     public void updateIP() {
         if (!isInternetAvailable()) return;
         try {
+            String ipPublic = getPublicIP();
             if (IpNow == null) {
-                IpNow = getPublicIP();
-                getLogger().info("IP: " + IpNow);
+                IpNow = ipPublic;
             }
             if (!IpNow.equals(getPublicIP())) { // Si son diferentes es a cambiado
-                String url = DYNAMIC_DNS_URL + "?host=@&domain=" + domain + "&password=" + password + "&ip=" + getPublicIP();
+                String url = DYNAMIC_DNS_URL + "?host=@&domain=" + domain + "&password=" + password + "&ip=" + ipPublic;
                 HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
                 connection.setRequestMethod("GET");
                 int responseCode = connection.getResponseCode();
                 if (responseCode == HttpURLConnection.HTTP_OK) {
-                    getLogger().info(String.format("La ip Se actualizó %s -> %s",IpNow ,getPublicIP()));
-                    IpNow = getPublicIP();
+                    getLogger().info(String.format("La ip Se actualizó %s -> %s",IpNow ,ipPublic));
+                    IpNow = ipPublic;
                 } else {
-                    getLogger().severe("Error al actualizar la IP. Código de respuesta:" + responseCode);
+                    getLogger().severe("Error al actualizar la IP. Código de respuesta: " + responseCode);
+                }
+            }else {
+                if (isStarting) {
+                    getLogger().info("IP: " + IpNow);
+                    isStarting = false;
                 }
             }
+            getConfig().set("last-ip", ipPublic);
+            saveConfig();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
