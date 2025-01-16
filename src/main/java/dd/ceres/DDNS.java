@@ -1,4 +1,4 @@
-package net;
+package dd.ceres;
 
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -15,9 +15,19 @@ public final class DDNS extends JavaPlugin {
     public void onEnable() {
         saveDefaultConfig();
         reloadConfig();
-        password = getConfig().getString("Password-dns");
+        password = getConfig().getString("password-dns");
         domain = getConfig().getString("domain");
         IpNow = getConfig().getString("last-ip");
+        lastUpdate = getConfig().getLong("last-update");
+        if (lastUpdate < System.currentTimeMillis()) {
+            try {
+                forceUpdateIP(getPublicIP());
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            getConfig().set("last-update", System.currentTimeMillis() + 1000*60*15);
+        }
+
         new BukkitRunnable() {
             public void run() {
                 try {
@@ -37,6 +47,7 @@ public final class DDNS extends JavaPlugin {
     private static final String DYNAMIC_DNS_URL = "https://dynamicdns.park-your-domain.com/update";
     private static String domain = "";
     private static String password = "";
+    private static long lastUpdate = 0;
     private static String IpNow = null;
 
     public String getPublicIP() throws Exception {
@@ -64,16 +75,7 @@ public final class DDNS extends JavaPlugin {
                 IpNow = ipPublic;
             }
             if (!IpNow.equals(getPublicIP())) { // Si son diferentes es a cambiado
-                String url = DYNAMIC_DNS_URL + "?host=@&domain=" + domain + "&password=" + password + "&ip=" + ipPublic;
-                HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
-                connection.setRequestMethod("GET");
-                int responseCode = connection.getResponseCode();
-                if (responseCode == HttpURLConnection.HTTP_OK) {
-                    getLogger().info(String.format("La ip Se actualizó %s -> %s",IpNow ,ipPublic));
-                    IpNow = ipPublic;
-                } else {
-                    getLogger().severe("Error al actualizar la IP. Código de respuesta: " + responseCode);
-                }
+                forceUpdateIP(ipPublic);
             }else {
                 if (isStarting) {
                     getLogger().info("IP: " + IpNow);
@@ -81,9 +83,25 @@ public final class DDNS extends JavaPlugin {
                 }
             }
             getConfig().set("last-ip", ipPublic);
+            getConfig().set("last-update", lastUpdate);
+            getConfig().set("domain", domain);
+            getConfig().set("password-dns", password);
             saveConfig();
         } catch (Exception e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    private void forceUpdateIP(String ipPublic) throws IOException {
+        String url = DYNAMIC_DNS_URL + "?host=@&domain=" + domain + "&password=" + password + "&ip=" + ipPublic;
+        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+        connection.setRequestMethod("GET");
+        int responseCode = connection.getResponseCode();
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            getLogger().info(String.format("La ip Se actualizó %s -> %s",IpNow , ipPublic));
+            IpNow = ipPublic;
+        } else {
+            getLogger().severe("Error al actualizar la IP. Código de respuesta: " + responseCode);
         }
     }
 
