@@ -1,5 +1,5 @@
 name: DDNS
-version: '1.2'
+version: '2.0'
 main: dd.ceres.DDNS
 api-version: '1.21'
 prefix: DDNS
